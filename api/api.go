@@ -19,16 +19,23 @@ type MiddlewareFunc func(HandlerFunc) HandlerFunc
 
 type HandlerFunc func(c Context) error
 
+type HTTPErrorHandler func(err error, c Context)
+
 type Api struct {
-	server      *http.Server
-	middlewares []MiddlewareFunc
-	Routes      []*Router
-	Binder      Binder
-	pool        sync.Pool
+	server       *http.Server
+	middlewares  []MiddlewareFunc
+	Routes       []*Router
+	Binder       Binder
+	pool         sync.Pool
+	ErrorHandler HTTPErrorHandler
 }
 
 func (a *Api) Use(middleware ...MiddlewareFunc) {
 	a.middlewares = append(a.middlewares, middleware...)
+}
+
+func (a *Api) DefaultErrorHandler(err error, c Context) {
+	c.Json(400, map[string]string{"err": err.Error()})
 }
 
 func (a *Api) Start(address string) error {
@@ -53,19 +60,26 @@ func (a *Api) Start(address string) error {
 func (a *Api) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	c := a.pool.Get().(*context)
+	c.Reset(r, w)
+	var handler HandlerFunc
 	for _, router := range a.Routes {
 		if r.Method == router.Method && r.URL.Path == router.Path {
-			c.request = r
-			c.response = w
-			handler := applyMiddleware(router.Handler, a.middlewares...)
-			handler(c)
-			return
+			handler = applyMiddleware(router.Handler, a.middlewares...)
+			break
 		}
+	}
+
+	if handler != nil {
+		if err := handler(c); err != nil {
+			a.ErrorHandler(err, c)
+		}
+	} else {
+		http.NotFound(w, r)
 	}
 
 	a.pool.Put(c)
 
-	http.NotFound(w, r)
+	//
 
 }
 
@@ -75,14 +89,22 @@ func New() *Api {
 
 	a := &Api{middlewares: middlewares}
 	a.pool.New = func() any {
-		return &context{
-			request:  nil,
-			response: nil,
-			handler:  notFoundHandler,
-		}
+		return a.NewContext(nil, nil)
 
 	}
+	a.ErrorHandler = a.DefaultErrorHandler
+	a.Binder = &DefaultBinder{}
 
 	return a
+
+}
+
+func (a *Api) NewContext(w http.ResponseWriter, r *http.Request) Context {
+	return &context{
+		request:  r,
+		response: NewResponse(w, a),
+		handler:  notFoundHandler,
+		api:      a,
+	}
 
 }

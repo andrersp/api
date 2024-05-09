@@ -10,26 +10,38 @@ func PrintAlgo(c context.Context) {
 	fmt.Println(c)
 }
 
+type Payload struct {
+	Name string `json:"name"`
+}
+
 type Response struct {
 	Name string `json:"name"`
 	Age  int    `json:"age"`
 }
 
 func Home(a api.Context) error {
+	// fmt.Println(a.Request().PathValue())
 	PrintAlgo(a.Request().Context())
 
 	response := Response{Name: "Testando", Age: 21}
 	return a.Json(201, response)
 }
 
+func Save(a api.Context) error {
+	var payload Payload
+
+	err := a.Bind(&payload)
+	if err != nil {
+		return err
+	}
+	return a.Json(201, payload)
+}
+
 func main() {
 
 	server := api.New()
-	server.Add("GET", "/home", Home, api.JsonMiddleware)
-	server.Add("GET", "/home2", Home)
-	server.Add("GET", "/home3", Home)
-	server.Add("GET", "/home4", Home)
-	server.Add("GET", "/home5", Home)
-	server.Add("GET", "/hom4e", Home)
+	server.Add("GET", "/home/{nome}", Home, api.JsonMiddleware)
+	server.Add("POST", "/home", Save)
+
 	server.Start(":8080")
 }

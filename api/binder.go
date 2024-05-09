@@ -3,7 +3,7 @@ package api
 import "encoding/json"
 
 type Binder interface {
-	Bind(i interface{}, c Context)
+	Bind(i interface{}, c Context) error
 }
 
 type DefaultBinder struct {
