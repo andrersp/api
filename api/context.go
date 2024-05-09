@@ -5,13 +5,21 @@ import (
 	"net/http"
 )
 
+type Context interface {
+	Request() *http.Request
+	Response() http.ResponseWriter
+	Json(code int, i interface{}) error
+	Bind(i interface{}) error
+}
+
 type context struct {
 	request  *http.Request
 	response http.ResponseWriter
 	api      *Api
+	handler  HandlerFunc
 }
 
-// Bind implements HttpContext.
+// Bind implements Context.
 func (c *context) Bind(i interface{}) error {
 	panic("unimplemented")
 }
@@ -37,7 +45,7 @@ func (c *context) writeContentType(value string) {
 	}
 }
 
-func NewContext(w http.ResponseWriter, r *http.Request) HttpContext {
+func NewContext(w http.ResponseWriter, r *http.Request) Context {
 	return &context{
 		request:  r,
 		response: w,

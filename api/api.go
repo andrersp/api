@@ -1,9 +1,10 @@
 package api
 
 import (
-	"fmt"
-	"log/slog"
+	"log"
+	"net"
 	"net/http"
+	"sync"
 )
 
 const (
@@ -14,56 +15,74 @@ const (
 	MIMEApplicationJSON = "application/json"
 )
 
-type MiddlewareFunc func(http.HandlerFunc) http.HandlerFunc
+type MiddlewareFunc func(HandlerFunc) HandlerFunc
 
-type HttpContext interface {
-	Request() *http.Request
-	Response() http.ResponseWriter
-	Json(code int, i interface{}) error
-	Bind(i interface{}) error
-}
-
-type HandlerFunc func(c HttpContext) error
+type HandlerFunc func(c Context) error
 
 type Api struct {
 	server      *http.Server
 	middlewares []MiddlewareFunc
+	Routes      []*Router
 	Binder      Binder
+	pool        sync.Pool
 }
 
-func (a *Api) Add(method, path string, handler HandlerFunc) {
-
-	http.HandleFunc(fmt.Sprintf("%s %s", method, path), func(w http.ResponseWriter, r *http.Request) {
-		ctx := NewContext(w, r)
-		if err := handler(ctx); err != nil {
-			fmt.Println("Ok")
-		}
-
-	})
-
+func (a *Api) Use(middleware ...MiddlewareFunc) {
+	a.middlewares = append(a.middlewares, middleware...)
 }
 
 func (a *Api) Start(address string) error {
+	a.server = &http.Server{
+		Addr:    address,
+		Handler: a,
+	}
+	listner, err := net.Listen("tcp", address)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer listner.Close()
 
-	a.server.Addr = address
-	slog.Info("start http server", "address", address)
+	for _, route := range a.Routes {
+		log.Printf("Registered routes with method: %s and path %s\n", route.Method, route.Path)
+	}
 
-	return a.server.ListenAndServe()
+	return a.server.Serve(listner)
+
+}
+
+func (a *Api) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
+	c := a.pool.Get().(*context)
+	for _, router := range a.Routes {
+		if r.Method == router.Method && r.URL.Path == router.Path {
+			c.request = r
+			c.response = w
+			handler := applyMiddleware(router.Handler, a.middlewares...)
+			handler(c)
+			return
+		}
+	}
+
+	a.pool.Put(c)
+
+	http.NotFound(w, r)
+
 }
 
 func New() *Api {
-	server := new(http.Server)
 	middlewares := make([]MiddlewareFunc, 0)
 	middlewares = append(middlewares, loggerMiddeware)
 
-	return &Api{server: server, middlewares: middlewares}
+	a := &Api{middlewares: middlewares}
+	a.pool.New = func() any {
+		return &context{
+			request:  nil,
+			response: nil,
+			handler:  notFoundHandler,
+		}
+
+	}
+
+	return a
 
 }
-
-// func getEnv(value, defaultValue string) string {
-// 	value = os.Getenv(value)
-// 	if value == "" {
-// 		return defaultValue
-// 	}
-// 	return value
-// }
