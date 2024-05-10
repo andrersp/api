@@ -20,8 +20,7 @@ type Response struct {
 }
 
 func Home(a api.Context) error {
-	// fmt.Println(a.Request().PathValue())
-	PrintAlgo(a.Request().Context())
+	fmt.Println(a.Request().PathValue("nome"))
 
 	response := Response{Name: "Testando", Age: 21}
 	return a.Json(201, response)

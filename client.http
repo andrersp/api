@@ -1,0 +1,17 @@
+POST http://localhost:8080/home
+Content-Type: application/json
+
+ {
+  "name": "andre"
+}
+###
+
+GET http://localhost:8080/home/andreluis
+
+
+
+###
+POST url HTTP/1.1
+header name: header value
+
+content

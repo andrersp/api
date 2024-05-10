@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -39,9 +40,9 @@ func (a *Api) DefaultErrorHandler(err error, c Context) {
 }
 
 func (a *Api) Start(address string) error {
+
 	a.server = &http.Server{
-		Addr:    address,
-		Handler: a,
+		Addr: address,
 	}
 	listner, err := net.Listen("tcp", address)
 	if err != nil {
@@ -50,6 +51,18 @@ func (a *Api) Start(address string) error {
 	defer listner.Close()
 
 	for _, route := range a.Routes {
+		path := fmt.Sprintf("%s %s", route.Method, route.Path)
+		http.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+			ctx := &context{
+				request:  r,
+				response: NewResponse(w, a),
+			}
+			handler := applyMiddleware(route.Handler, a.middlewares...)
+			if err := handler(ctx); err != nil {
+				fmt.Println("Error")
+
+			}
+		})
 		log.Printf("Registered routes with method: %s and path %s\n", route.Method, route.Path)
 	}
 
@@ -57,31 +70,31 @@ func (a *Api) Start(address string) error {
 
 }
 
-func (a *Api) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+// func (a *Api) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
-	c := a.pool.Get().(*context)
-	c.Reset(r, w)
-	var handler HandlerFunc
-	for _, router := range a.Routes {
-		if r.Method == router.Method && r.URL.Path == router.Path {
-			handler = applyMiddleware(router.Handler, a.middlewares...)
-			break
-		}
-	}
+// 	c := a.pool.Get().(*context)
+// 	c.Reset(r, w)
+// 	var handler HandlerFunc
+// 	for _, router := range a.Routes {
+// 		if r.Method == router.Method && r.URL.Path == router.Path {
+// 			handler = applyMiddleware(router.Handler, a.middlewares...)
+// 			break
+// 		}
+// 	}
 
-	if handler != nil {
-		if err := handler(c); err != nil {
-			a.ErrorHandler(err, c)
-		}
-	} else {
-		http.NotFound(w, r)
-	}
+// 	if handler != nil {
+// 		if err := handler(c); err != nil {
+// 			a.ErrorHandler(err, c)
+// 		}
+// 	} else {
+// 		http.NotFound(w, r)
+// 	}
 
-	a.pool.Put(c)
+// 	a.pool.Put(c)
 
-	//
+// 	//
 
-}
+// }
 
 func New() *Api {
 	middlewares := make([]MiddlewareFunc, 0)
