@@ -2,15 +2,23 @@ package api
 
 import (
 	"fmt"
+	"log/slog"
+	"time"
 )
 
 func loggerMiddeware(next HandlerFunc) HandlerFunc {
 	return func(c Context) error {
-		fmt.Println("Start Middleware")
-		r := next(c)
-		fmt.Println(c.Response().Status)
-		fmt.Println("End Middleware")
-		return r
+		start := time.Now()
+		path := c.Request().URL.Path
+		method := c.Request().Method
+		c.Set("teste", 123)
+		next(c)
+		status := c.Response().Status
+		end := time.Since(start)
+
+		slog.Info("request", "duration", end.Seconds(), "method", method, "path", path, "status", status)
+
+		return nil
 	}
 
 }

@@ -4,6 +4,8 @@ import (
 	"api/api"
 	"context"
 	"fmt"
+	"log/slog"
+	"os"
 )
 
 func PrintAlgo(c context.Context) {
@@ -20,7 +22,8 @@ type Response struct {
 }
 
 func Home(a api.Context) error {
-	fmt.Println(a.Request().PathValue("nome"))
+	fmt.Println(a.Param("nome"))
+	fmt.Println(a.Get("teste"))
 
 	response := Response{Name: "Testando", Age: 21}
 	return a.Json(201, response)
@@ -36,7 +39,13 @@ func Save(a api.Context) error {
 	return a.Json(201, payload)
 }
 
+func setDefaultLogger() {
+	logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	slog.SetDefault(logger)
+}
+
 func main() {
+	setDefaultLogger()
 
 	server := api.New()
 	server.Add("GET", "/home/{nome}", Home, api.JsonMiddleware)

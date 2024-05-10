@@ -15,7 +15,7 @@ type Context interface {
 	Bind(i interface{}) error
 	Set(key string, val interface{})
 	Get(key string) interface{}
-	Reset(r *http.Request, w http.ResponseWriter)
+	Param(string) string
 	Api() *Api
 }
 
@@ -49,6 +49,10 @@ func (c *context) Api() *Api {
 	return c.api
 }
 
+func (c *context) Param(name string) string {
+	return c.request.PathValue(name)
+}
+
 // Bind implements Context.
 func (c *context) Bind(i interface{}) error {
 	return c.api.Binder.Bind(i, c)
@@ -73,17 +77,4 @@ func (c *context) writeContentType(value string) {
 	if header.Get(HeaderContentType) == "" {
 		header.Set(HeaderContentType, value)
 	}
-}
-
-func (c *context) Reset(r *http.Request, w http.ResponseWriter) {
-	c.request = r
-	c.response.reset(w)
-	// c.query = nil
-	// c.handler = NotFoundHandler
-	c.store = nil
-	// c.path = ""
-	// c.pnames = nil
-	// c.logger = nil
-	// NOTE: Don't reset because it has to have length c.echo.maxParam (or bigger) at all times
-
 }

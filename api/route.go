@@ -1,20 +1,20 @@
 package api
 
-type Router struct {
+type Route struct {
 	Method  string
 	Path    string
 	Handler HandlerFunc
 }
 
-func (a *Api) Add(method, path string, handler HandlerFunc, middlewares ...MiddlewareFunc) *Router {
+func (a *Api) Add(method, path string, handler HandlerFunc, middlewares ...MiddlewareFunc) *Route {
 	router := a.add(method, path, handler, middlewares...)
-	a.Routes = append(a.Routes, router)
+	a.routes = append(a.routes, router)
 	return router
 }
 
-func (a *Api) add(method, path string, handler HandlerFunc, middlewares ...MiddlewareFunc) *Router {
+func (a *Api) add(method, path string, handler HandlerFunc, middlewares ...MiddlewareFunc) *Route {
 	h := applyMiddleware(handler, middlewares...)
-	return &Router{Method: method, Path: path, Handler: h}
+	return &Route{Method: method, Path: path, Handler: h}
 }
 
 func applyMiddleware(h HandlerFunc, middlewares ...MiddlewareFunc) HandlerFunc {
