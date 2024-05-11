@@ -23,7 +23,6 @@ type Response struct {
 
 func Home(a api.Context) error {
 	fmt.Println(a.Param("nome"))
-	fmt.Println(a.Get("teste"))
 
 	response := Response{Name: "Testando", Age: 21}
 	return a.Json(201, response)
@@ -34,6 +33,7 @@ func Save(a api.Context) error {
 
 	err := a.Bind(&payload)
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	return a.Json(201, payload)
@@ -48,7 +48,7 @@ func main() {
 	setDefaultLogger()
 
 	server := api.New()
-	server.Add("GET", "/home/{nome}", Home, api.JsonMiddleware)
+	server.Add("GET", "/home/{nome}", Home)
 	server.Add("POST", "/home", Save)
 
 	server.Start(":8080")
